@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+    <!-- Hero Section -->
+    <header class="hero">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-lg-6">
+                    <h1>Plan Your Perfect Trip with TravelMate</h1>
+                    <p class="lead">Your all-in-one travel companion that helps you plan, pack, and prepare for your next adventure.</p>
+                    <a href="{% url 'trips:trip_planner' %}" class="btn btn-primary btn-lg">Get Started Free</a>
+                </div>
+                <div class="col-lg-6">
+                    <div class="hero-image-placeholder">
+                        <i class="fas fa-plane-departure"></i>
+                        <p>Travel Smart, Travel Easy</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Features Section -->
+    <section id="features" class="features">
+        <div class="container">
+            <h2 class="text-center mb-5">Why Choose TravelMate?</h2>
+            <div class="row g-4">
+                <div class="col-md-4">
+                    <div class="feature-card">
+                        <i class="fas fa-map-marked-alt"></i>
+                        <h3>Smart Trip Planning</h3>
+                        <p>Create and manage your trips with personalized recommendations based on your preferences.</p>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="feature-card">
+                        <i class="fas fa-cloud-sun"></i>
+                        <h3>Weather Insights</h3>
+                        <p>Get real-time weather forecasts and smart outfit recommendations for your destination.</p>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="feature-card">
+                        <i class="fas fa-suitcase-rolling"></i>
+                        <h3>Smart Packing Lists</h3>
+                        <p>Auto-generated packing lists based on your destination, weather, and activities.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works Section -->
+    <section id="how-it-works" class="how-it-works">
+        <div class="container">
+            <h2 class="text-center mb-5">How It Works</h2>
+            <div class="row g-4">
+                <div class="col-md-3">
+                    <div class="step-card">
+                        <div class="step-number">1</div>
+                        <h4>Create Account</h4>
+                        <p>Sign up for free and set up your travel preferences.</p>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="step-card">
+                        <div class="step-number">2</div>
+                        <h4>Plan Your Trip</h4>
+                        <p>Enter your destination and travel dates.</p>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="step-card">
+                        <div class="step-number">3</div>
+                        <h4>Get Recommendations</h4>
+                        <p>Receive personalized packing and outfit suggestions.</p>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="step-card">
+                        <div class="step-number">4</div>
+                        <h4>Travel Confidently</h4>
+                        <p>Enjoy your trip with everything planned and packed.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+{% endblock %} 
