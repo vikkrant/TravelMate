@@ -189,4 +189,73 @@ body {
     .feature-card, .step-card {
         margin-bottom: 1.5rem;
     }
+}
+
+/* Authentication Pages */
+.auth-container {
+    padding-top: 6rem;
+    padding-bottom: 3rem;
+    min-height: calc(100vh - 72px);
+    display: flex;
+    align-items: center;
+}
+
+.auth-card {
+    width: 100%;
+    max-width: 450px;
+    margin: 0 auto;
+    padding: 2rem;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    background-color: white;
+}
+
+.auth-card .card-header {
+    background: none;
+    border-bottom: none;
+    text-align: center;
+    padding-bottom: 1.5rem;
+}
+
+.auth-card .card-header h2 {
+    color: var(--primary-color);
+    margin: 0;
+}
+
+.auth-card .form-group {
+    margin-bottom: 1.5rem;
+}
+
+.auth-card .form-control {
+    padding: 0.75rem 1rem;
+    border-radius: 5px;
+}
+
+.auth-card .form-control:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(33, 150, 243, 0.25);
+}
+
+.auth-card .btn-primary {
+    width: 100%;
+    padding: 0.75rem;
+    font-size: 1.1rem;
+}
+
+.auth-card .alert {
+    margin-top: 1rem;
+    margin-bottom: 1rem;
+}
+
+.auth-card .text-center {
+    margin-top: 1.5rem;
+}
+
+.auth-card a {
+    color: var(--primary-color);
+    text-decoration: none;
+}
+
+.auth-card a:hover {
+    text-decoration: underline;
 } 

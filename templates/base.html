@@ -29,12 +29,29 @@
                     <li class="nav-item">
                         <a class="nav-link" href="/#how-it-works">How It Works</a>
                     </li>
+                    {% if user.is_authenticated %}
                     <li class="nav-item">
-                        <a class="btn btn-primary" href="/login">Login</a>
+                        <a class="nav-link" href="{% url 'trips:trip_planner' %}">My Trips</a>
+                    </li>
+                    {% if user.is_staff %}
+                    <li class="nav-item">
+                        <a class="btn btn-warning me-2" href="{% url 'admin:index' %}">Admin Panel</a>
+                    </li>
+                    {% endif %}
+                    <li class="nav-item">
+                        <form method="post" action="{% url 'logout' %}" class="d-inline">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-outline-primary">Logout</button>
+                        </form>
+                    </li>
+                    {% else %}
+                    <li class="nav-item">
+                        <a class="btn btn-primary" href="{% url 'login' %}">Login</a>
                     </li>
                     <li class="nav-item">
-                        <a class="btn btn-outline-primary ms-2" href="/signup">Sign Up</a>
+                        <a class="btn btn-outline-primary ms-2" href="{% url 'signup' %}">Sign Up</a>
                     </li>
+                    {% endif %}
                 </ul>
             </div>
         </div>
@@ -58,8 +75,8 @@
                     <ul class="list-unstyled">
                         <li><a href="/#features">Features</a></li>
                         <li><a href="/#how-it-works">How It Works</a></li>
-                        <li><a href="/login">Login</a></li>
-                        <li><a href="/signup">Sign Up</a></li>
+                        <li><a href="{% url 'login' %}">Login</a></li>
+                        <li><a href="{% url 'signup' %}">Sign Up</a></li>
                     </ul>
                 </div>
                 <div class="col-md-4">
