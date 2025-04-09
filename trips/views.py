@@ -19,7 +19,7 @@ def view_weather(request, id):
 
     trip = get_object_or_404(Trip, id=id)
 
-    url = f'https://api.openweathermap.org/data/3.0/onecall?lat={trip.latitude}&lon={trip.longitude}&exclude=current,minutely,hourly,alerts&units=imperial&appid={api_key}'
+    url = f"https://api.openweathermap.org/data/3.0/onecall?lat={trip.latitude}&lon={trip.longitude}&exclude=current,minutely,hourly,alerts&units=imperial&appid={api_key}"
     response = requests.get(url).json()
 
     processed_days = []
@@ -39,13 +39,19 @@ def view_weather(request, id):
         if forecast_day < trip.start_date:
             continue
 
+        temp = round(day['feels_like']['day'])
+        wind_speed = round(day['wind_speed'])
+        humidity = round(day['humidity'])
+        rain_chance = round(day['pop'] * 100)
+        cloud_cover = round(day['clouds'])
+
         processed_day['day'] = forecast_day.strftime('%a')
         processed_day['date'] = forecast_day.strftime('%b %-d')
-        processed_day['temp'] = f'{round(day['feels_like']['day'])} °F'
-        processed_day['wind_speed'] = f'{round(day['wind_speed'])} mph'
-        processed_day['humidity'] = f'{day['humidity']}%'
-        processed_day['rain_chance'] = f'{day['pop'] * 100}%'
-        processed_day['cloud_cover'] = f'{day['clouds']}%'
+        processed_day['temp'] = f'{temp} °F'
+        processed_day['wind_speed'] = f'{wind_speed} mph'
+        processed_day['humidity'] = f'{humidity}%'
+        processed_day['rain_chance'] = f'{rain_chance}%'
+        processed_day['cloud_cover'] = f'{cloud_cover}%'
 
         condition_code = day['weather'][-1]['id']
         condition_group = int(condition_code / 100)
@@ -77,4 +83,5 @@ def view_weather(request, id):
             'end_date': trip.end_date.strftime('%A, %B %-d, %Y')
         }
     }
+
     return render(request, 'trips/view_weather.html', context)
