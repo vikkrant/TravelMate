@@ -1,13 +1,49 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth import login, update_session_auth_hash
-from django.contrib.auth.forms import UserCreationForm, AuthenticationForm, PasswordChangeForm
+from django.contrib.auth.forms import UserCreationForm, AuthenticationForm, PasswordChangeForm, PasswordResetForm
 from django.contrib.auth.decorators import login_required
 from django.urls import reverse_lazy
 from django.views import generic
 from .forms import ProfileForm
 from django.contrib import messages
+from django import forms
+from django.contrib.auth.models import User
 
 # Create your views here.
+class ResetPasswordForm(forms.Form):
+    username = forms.CharField(max_length=150)
+    new_password = forms.CharField(widget=forms.PasswordInput)
+    confirm_password = forms.CharField(widget=forms.PasswordInput)
+
+    def clean(self):
+        cleaned_data = super().clean()
+        password = cleaned_data.get('new_password')
+        confirm = cleaned_data.get('confirm_password')
+
+        if password and confirm and password != confirm:
+            raise forms.ValidationError("Passwords do not match.")
+        return cleaned_data
+
+    def clean_username(self):
+        username = self.cleaned_data['username']
+        if not User.objects.filter(username=username).exists():
+            raise forms.ValidationError("Username not found.")
+        return username
+
+def reset_password(request):
+    if request.method == 'POST':
+        form = ResetPasswordForm(request.POST)
+        if form.is_valid():
+            username = form.cleaned_data['username']
+            new_password = form.cleaned_data['new_password']
+            user = User.objects.get(username=username)
+            user.set_password(new_password)
+            user.save()
+            messages.success(request, 'Password reset successful. You can now log in.')
+            return redirect('core:landing') 
+    else:
+        form = ResetPasswordForm()
+    return render(request, 'registration/reset_password.html', {'form': form})
 
 def signup(request):
     if request.method == 'POST':
@@ -59,3 +95,5 @@ def change_password(request):
     else:
         form = PasswordChangeForm(request.user)
     return render(request, 'registration/change_password.html', {'form': form})
+
+
