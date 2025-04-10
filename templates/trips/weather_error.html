@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-danger text-white">
+                    <h4 class="mb-0">Weather Data Error</h4>
+                </div>
+                <div class="card-body">
+                    <p class="lead">{{ error }}</p>
+                    {% if details %}
+                    <div class="alert alert-info">
+                        <strong>Details:</strong> {{ details }}
+                    </div>
+                    {% endif %}
+                    <a href="{% url 'trips:trip_planner' %}" class="btn btn-primary">Back to Trip Planner</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 
