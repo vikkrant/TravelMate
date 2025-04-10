@@ -5,26 +5,29 @@
 <div class="container py-5">
     <div class="row">
         <div class="col-md-8 mx-auto">
-            <h1 class="mb-4">Plan Your Trip</h1>
+            <h1 class="mb-4">Edit Trip</h1>
             <div class="card shadow">
                 <div class="card-body">
-                    <form method="post" action="{% url 'trips:trip_planner' %}">
+                    <form method="post" action="{% url 'trips:edit_trip' trip.id %}">
                         {% csrf_token %}
                         <div class="mb-3">
                             <label for="destination" class="form-label">Destination</label>
-                            <input type="text" class="form-control" id="destination" name="destination" required>
+                            <input type="text" class="form-control" id="destination" name="destination" value="{{ trip.destination }}" required>
                         </div>
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label for="start_date" class="form-label">Start Date</label>
-                                <input type="date" class="form-control" id="start_date" name="start_date" required>
+                                <input type="date" class="form-control" id="start_date" name="start_date" value="{{ trip.start_date|date:'Y-m-d' }}" required>
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label for="end_date" class="form-label">End Date</label>
-                                <input type="date" class="form-control" id="end_date" name="end_date" required>
+                                <input type="date" class="form-control" id="end_date" name="end_date" value="{{ trip.end_date|date:'Y-m-d' }}" required>
                             </div>
                         </div>
-                        <button type="submit" class="btn btn-primary">Create Trip</button>
+                        <div class="d-flex justify-content-between">
+                            <button type="submit" class="btn btn-primary">Update Trip</button>
+                            <a href="{% url 'trips:my_trips' %}" class="btn btn-secondary">Cancel</a>
+                        </div>
                     </form>
                 </div>
             </div>
