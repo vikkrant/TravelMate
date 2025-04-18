@@ -1,13 +1,17 @@
 from datetime import datetime
-
+import json
 import requests
 from django.http import JsonResponse
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 import os
 from django.contrib import messages
+from django.views.decorators.http import require_POST
+import openai
+from django.utils import timezone
+from .models import OutfitRecommendation
 
-from trips.models import Trip
+from trips.models import Trip, PackingListItem
 
 
 @login_required
@@ -198,3 +202,327 @@ def delete_trip(request, id):
         return redirect('trips:my_trips')
     
     return render(request, 'trips/delete_trip.html', {'trip': trip})
+
+@login_required
+def view_packing_list(request, id):
+    trip = get_object_or_404(Trip, id=id, user=request.user)
+    items = PackingListItem.objects.filter(trip=trip)
+    
+    categories = {}
+    for item in items:
+        if item.category not in categories:
+            categories[item.category] = []
+        categories[item.category].append(item)
+    
+    context = {
+        'trip': trip,
+        'categories': categories,
+    }
+    return render(request, 'trips/view_packing_list.html', context)
+
+@login_required
+@require_POST
+def toggle_packed_status(request, trip_id, item_id):
+    item = get_object_or_404(PackingListItem, id=item_id, trip_id=trip_id, trip__user=request.user)
+    item.is_packed = not item.is_packed
+    item.save()
+    return JsonResponse({'status': 'success', 'is_packed': item.is_packed})
+
+@login_required
+@require_POST
+def add_packing_item(request, trip_id):
+    trip = get_object_or_404(Trip, id=trip_id, user=request.user)
+    name = request.POST.get('name')
+    category = request.POST.get('category')
+    quantity = request.POST.get('quantity', 1)
+    
+    if not name or not category:
+        messages.error(request, 'Name and category are required.')
+        return redirect('trips:view_packing_list', id=trip_id)
+    
+    PackingListItem.objects.create(
+        trip=trip,
+        name=name,
+        category=category,
+        quantity=quantity,
+        is_auto_generated=False
+    )
+    messages.success(request, f'Added {name} to your packing list.')
+    return redirect('trips:view_packing_list', id=trip_id)
+
+@login_required
+@require_POST
+def delete_packing_item(request, trip_id, item_id):
+    item = get_object_or_404(PackingListItem, id=item_id, trip_id=trip_id, trip__user=request.user)
+    item.delete()
+    messages.success(request, f'Removed {item.name} from your packing list.')
+    return redirect('trips:view_packing_list', id=trip_id)
+
+@login_required
+@require_POST
+def generate_packing_list(request, trip_id):
+    trip = get_object_or_404(Trip, id=trip_id, user=request.user)
+    
+    # Calculate trip duration
+    duration = (trip.end_date - trip.start_date).days + 1
+    
+    # Get weather data for the trip
+    api_key = os.environ['OPENWEATHER_API_KEY']
+    weather_url = f"https://api.openweathermap.org/data/2.5/forecast?lat={trip.latitude}&lon={trip.longitude}&units=imperial&appid={api_key}"
+    
+    try:
+        weather_response = requests.get(weather_url)
+        weather_response.raise_for_status()
+        weather_data = weather_response.json()
+        
+        # Basic items everyone needs
+        basic_items = [
+            ('Toiletries', ['Toothbrush', 'Toothpaste', 'Deodorant', 'Shampoo', 'Soap']),
+            ('Documents', ['Passport', 'ID', 'Travel Insurance', 'Boarding Pass']),
+            ('Electronics', ['Phone Charger', 'Power Bank', 'Adapter']),
+            ('Miscellaneous', ['Wallet', 'Keys', 'Medications']),
+        ]
+        
+        # Add basic items
+        for category, items in basic_items:
+            for item in items:
+                PackingListItem.objects.get_or_create(
+                    trip=trip,
+                    name=item,
+                    category=category,
+                    is_auto_generated=True
+                )
+        
+        # Add weather-specific items
+        weather_items = []
+        if any(forecast['main']['temp'] < 60 for forecast in weather_data['list']):
+            weather_items.extend([
+                ('Clothing', 'Warm Jacket'),
+                ('Clothing', 'Sweater'),
+                ('Accessories', 'Scarf'),
+                ('Accessories', 'Gloves'),
+            ])
+        
+        if any(forecast['main']['temp'] > 75 for forecast in weather_data['list']):
+            weather_items.extend([
+                ('Clothing', 'Sunglasses'),
+                ('Toiletries', 'Sunscreen'),
+                ('Clothing', 'Hat'),
+                ('Clothing', 'Shorts'),
+            ])
+        
+        if any(forecast.get('rain', {}).get('3h', 0) > 0 for forecast in weather_data['list']):
+            weather_items.extend([
+                ('Accessories', 'Umbrella'),
+                ('Clothing', 'Rain Jacket'),
+                ('Accessories', 'Waterproof Bag'),
+            ])
+        
+        # Add weather-specific items
+        for category, item in weather_items:
+            PackingListItem.objects.get_or_create(
+                trip=trip,
+                name=item,
+                category=category,
+                is_auto_generated=True
+            )
+        
+        # Add clothing based on duration
+        clothing_items = [
+            ('Clothing', 'T-shirt', duration),
+            ('Clothing', 'Underwear', duration),
+            ('Clothing', 'Socks', duration),
+            ('Clothing', 'Pants', (duration // 2) + 1),
+        ]
+        
+        for category, item, count in clothing_items:
+            PackingListItem.objects.get_or_create(
+                trip=trip,
+                name=item,
+                category=category,
+                quantity=count,
+                is_auto_generated=True
+            )
+        
+        messages.success(request, 'Packing list generated successfully!')
+        
+    except requests.exceptions.RequestException as e:
+        messages.error(request, 'Failed to generate packing list. Please try again later.')
+    
+    return redirect('trips:view_packing_list', id=trip_id)
+
+@login_required
+def view_outfit_recommendations(request, id):
+    trip = get_object_or_404(Trip, id=id, user=request.user)
+    
+    # Get or generate outfit recommendations
+    recommendations = OutfitRecommendation.objects.filter(trip=trip).order_by('day')
+    
+    if not recommendations.exists():
+        # Generate new recommendations using weather data and OpenAI
+        api_key = os.environ['OPENWEATHER_API_KEY']
+        weather_url = f"https://api.openweathermap.org/data/2.5/forecast?lat={trip.latitude}&lon={trip.longitude}&units=imperial&appid={api_key}"
+        
+        try:
+            weather_response = requests.get(weather_url)
+            weather_response.raise_for_status()
+            weather_data = weather_response.json()
+            
+            for forecast in weather_data['list']:
+                forecast_time = datetime.fromtimestamp(forecast['dt'])
+                forecast_date = forecast_time.date()
+                
+                if forecast_date < trip.start_date:
+                    continue
+                    
+                if forecast_date > trip.end_date:
+                    break
+                
+                # Only create one recommendation per day
+                if not OutfitRecommendation.objects.filter(trip=trip, day=forecast_date).exists():
+                    temp = forecast['main']['feels_like']
+                    weather_desc = forecast['weather'][0]['main']
+                    
+                    # Generate outfit recommendation using OpenAI
+                    openai.api_key = os.environ.get('OPENAI_API_KEY')
+                    prompt = f"""
+                    Suggest an outfit for a day with the following conditions:
+                    - Temperature: {temp}°F
+                    - Weather: {weather_desc}
+                    - Location: {trip.destination}
+                    - Date: {forecast_date}
+                    
+                    Please provide a practical and stylish outfit recommendation that's appropriate for the weather.
+                    """
+                    
+                    try:
+                        response = openai.ChatCompletion.create(
+                            model="gpt-3.5-turbo",
+                            messages=[
+                                {"role": "system", "content": "You are a helpful fashion advisor."},
+                                {"role": "user", "content": prompt}
+                            ]
+                        )
+                        outfit_description = response.choices[0].message.content
+                    except Exception as e:
+                        outfit_description = f"Default recommendation for {weather_desc} weather at {temp}°F"
+                    
+                    OutfitRecommendation.objects.create(
+                        trip=trip,
+                        day=forecast_date,
+                        weather_condition=weather_desc,
+                        temperature=temp,
+                        outfit_description=outfit_description
+                    )
+            
+            recommendations = OutfitRecommendation.objects.filter(trip=trip).order_by('day')
+            messages.success(request, 'Outfit recommendations generated successfully!')
+            
+        except requests.exceptions.RequestException:
+            messages.error(request, 'Failed to fetch weather data. Please try again later.')
+        except Exception as e:
+            messages.error(request, f'Error generating outfit recommendations: {str(e)}')
+    
+    context = {
+        'trip': trip,
+        'recommendations': recommendations,
+    }
+    return render(request, 'trips/view_outfit_recommendations.html', context)
+
+@login_required
+@require_POST
+def customize_outfit(request, trip_id, recommendation_id):
+    recommendation = get_object_or_404(OutfitRecommendation, id=recommendation_id, trip_id=trip_id, trip__user=request.user)
+    custom_outfit = request.POST.get('custom_outfit')
+    
+    if custom_outfit:
+        recommendation.outfit_description = custom_outfit
+        recommendation.is_customized = True
+        recommendation.save()
+        messages.success(request, 'Outfit recommendation updated successfully!')
+    else:
+        messages.error(request, 'Please provide a custom outfit description.')
+    
+    return redirect('trips:view_outfit_recommendations', id=trip_id)
+
+@login_required
+@require_POST
+def generate_smart_packing_list(request, trip_id):
+    trip = get_object_or_404(Trip, id=trip_id, user=request.user)
+    
+    try:
+        # Get weather data
+        api_key = os.environ['OPENWEATHER_API_KEY']
+        weather_url = f"https://api.openweathermap.org/data/2.5/forecast?lat={trip.latitude}&lon={trip.longitude}&units=imperial&appid={api_key}"
+        weather_response = requests.get(weather_url)
+        weather_data = weather_response.json()
+        
+        # Prepare weather summary
+        weather_summary = []
+        for forecast in weather_data['list']:
+            forecast_time = datetime.fromtimestamp(forecast['dt'])
+            if trip.start_date <= forecast_time.date() <= trip.end_date:
+                weather_summary.append({
+                    'date': forecast_time.strftime('%Y-%m-%d'),
+                    'temp': forecast['main']['feels_like'],
+                    'weather': forecast['weather'][0]['main']
+                })
+        
+        # Generate packing list using OpenAI
+        openai.api_key = os.environ.get('OPENAI_API_KEY')
+        prompt = f"""
+        Generate a comprehensive packing list for a trip with the following details:
+        - Destination: {trip.destination}
+        - Duration: {(trip.end_date - trip.start_date).days + 1} days
+        - Date range: {trip.start_date} to {trip.end_date}
+        - Weather forecast: {json.dumps(weather_summary)}
+
+        Please organize items by category (Clothing, Toiletries, Electronics, etc.) and consider the weather conditions.
+        Format the response as a JSON object with categories as keys and arrays of items as values.
+        """
+        
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are a helpful travel planning assistant. Respond only with valid JSON."},
+                {"role": "user", "content": prompt}
+            ]
+        )
+        
+        # Parse the response and create packing list items
+        try:
+            items_by_category = json.loads(response.choices[0].message.content)
+            
+            # Delete existing auto-generated items
+            PackingListItem.objects.filter(trip=trip, is_auto_generated=True).delete()
+            
+            # Create new items
+            for category, items in items_by_category.items():
+                for item in items:
+                    name = item
+                    quantity = 1
+                    
+                    # If item is a dict with name and quantity
+                    if isinstance(item, dict):
+                        name = item.get('name', '')
+                        quantity = item.get('quantity', 1)
+                    
+                    PackingListItem.objects.create(
+                        trip=trip,
+                        name=name,
+                        category=category,
+                        quantity=quantity,
+                        is_auto_generated=True
+                    )
+            
+            messages.success(request, 'Smart packing list generated successfully!')
+            
+        except json.JSONDecodeError:
+            messages.error(request, 'Error parsing AI response. Using fallback packing list.')
+            # Call the original generate_packing_list function as fallback
+            return generate_packing_list(request, trip_id)
+            
+    except Exception as e:
+        messages.error(request, f'Error generating smart packing list: {str(e)}')
+    
+    return redirect('trips:view_packing_list', id=trip_id)

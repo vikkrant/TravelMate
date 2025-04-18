@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Outfit Recommendations - {{ trip.destination }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold mb-2">Outfit Recommendations</h1>
+        <p class="text-gray-600">
+            For your trip to {{ trip.destination }}
+            ({{ trip.start_date|date:"F j, Y" }} - {{ trip.end_date|date:"F j, Y" }})
+        </p>
+    </div>
+
+    {% if messages %}
+    <div class="mb-8">
+        {% for message in messages %}
+        <div class="p-4 {% if message.tags == 'success' %}bg-green-100 text-green-700{% else %}bg-red-100 text-red-700{% endif %} rounded-lg">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {% for recommendation in recommendations %}
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-xl font-semibold">{{ recommendation.day|date:"l, F j" }}</h3>
+                <span class="text-sm text-gray-500">{{ recommendation.temperature }}°F</span>
+            </div>
+            
+            <div class="mb-4">
+                <div class="flex items-center mb-2">
+                    <i class="fas {% if recommendation.weather_condition == 'Clear' %}fa-sun text-yellow-500
+                              {% elif recommendation.weather_condition == 'Rain' %}fa-cloud-rain text-blue-500
+                              {% elif recommendation.weather_condition == 'Clouds' %}fa-cloud text-gray-500
+                              {% elif recommendation.weather_condition == 'Snow' %}fa-snowflake text-blue-300
+                              {% else %}fa-cloud text-gray-500{% endif %} mr-2"></i>
+                    <span class="text-gray-700">{{ recommendation.weather_condition }}</span>
+                </div>
+                
+                <div class="bg-gray-50 rounded p-4 mb-4">
+                    <p class="text-gray-700 whitespace-pre-line">{{ recommendation.outfit_description }}</p>
+                </div>
+            </div>
+
+            <div class="mt-4">
+                <button onclick="toggleCustomizeForm('{{ recommendation.id }}')" class="text-blue-600 hover:text-blue-800">
+                    <i class="fas fa-edit mr-1"></i> Customize
+                </button>
+                
+                <form id="customize-form-{{ recommendation.id }}" 
+                      action="{% url 'trips:customize_outfit' trip.id recommendation.id %}" 
+                      method="POST" 
+                      class="hidden mt-4">
+                    {% csrf_token %}
+                    <textarea name="custom_outfit" 
+                              class="w-full p-2 border rounded-lg mb-2" 
+                              rows="4" 
+                              placeholder="Enter your custom outfit description">{{ recommendation.outfit_description }}</textarea>
+                    <button type="submit" 
+                            class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                        Save Changes
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-span-full text-center py-8">
+            <p class="text-gray-500">No outfit recommendations available.</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+function toggleCustomizeForm(recommendationId) {
+    const form = document.getElementById(`customize-form-${recommendationId}`);
+    form.classList.toggle('hidden');
+}
+</script>
+{% endblock %} 
