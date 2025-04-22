@@ -1,0 +1,157 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load trip_filters %}
+
+{% block title %}Outfit Recommendations - {{ trip.destination }}{% endblock %}
+
+{% block content %}
+<style>
+    .hover-shadow {
+        transition: box-shadow 0.3s, transform 0.3s;
+    }
+    .hover-shadow:hover {
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+        transform: translateY(-3px);
+    }
+    .outfit-card {
+        cursor: pointer;
+    }
+</style>
+
+<div class="container py-5">
+    <div class="row mb-4">
+        <div class="col-12 d-flex justify-content-between align-items-center">
+            <div>
+                <h1 class="mb-2">Outfit Recommendations</h1>
+                <p class="text-muted">
+                    For your trip to <span class="fw-medium">{{ trip.destination }}</span>
+                    ({{ trip.start_date|date:"F j" }} - {{ trip.end_date|date:"F j, Y" }})
+                </p>
+            </div>
+            <a href="{% url 'trips:my_trips' %}" class="text-secondary">
+                <i class="fas fa-arrow-left me-2"></i> Back to Trips
+            </a>
+        </div>
+    </div>
+
+    {% if messages %}
+    <div class="row mb-4">
+        <div class="col-12">
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">
+                {{ message }}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+        {% for recommendation in recommendations %}
+        <div class="col">
+            <a href="{% url 'trips:view_outfit_detail' recommendation.id %}" class="text-decoration-none">
+                <div class="card h-100 shadow-sm hover-shadow outfit-card">
+                    <div class="card-header bg-primary bg-gradient text-white">
+                        <h5 class="card-title mb-2">{{ recommendation.day|date:"l, F j" }}</h5>
+                        <div class="d-flex align-items-center">
+                            <i class="fas {% if recommendation.weather_condition == 'Clear' %}fa-sun text-warning
+                                {% elif recommendation.weather_condition == 'Rain' %}fa-cloud-rain text-info
+                                {% elif recommendation.weather_condition == 'Clouds' %}fa-cloud text-light
+                                {% elif recommendation.weather_condition == 'Snow' %}fa-snowflake text-light
+                                {% else %}fa-cloud text-light{% endif %} fa-2x me-3"></i>
+                            <div>
+                                <span class="fs-4 fw-bold">{{ recommendation.temperature }}°F</span>
+                                <span class="ms-2 text-light">{{ recommendation.weather_condition }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card-body">
+                        <!-- Activities Summary -->
+                        {% if recommendation.activities %}
+                        <div class="alert alert-info py-2 px-3 mb-3">
+                            <small class="fw-bold mb-1 d-block"><i class="fas fa-calendar-day me-1"></i> Planned Activities:</small>
+                            <p class="mb-0 small">{{ recommendation.activities }}</p>
+                        </div>
+                        {% endif %}
+
+                        <!-- Outfit Summary -->
+                        <div class="bg-light rounded p-3 mb-4">
+                            <h6 class="text-secondary fw-medium mb-2">Outfit Summary:</h6>
+                            <div class="outfit-summary">
+                                {% with outfit_lines=recommendation.outfit_description|split:"\n" %}
+                                {% for line in outfit_lines|slice:":3" %}
+                                    <p class="mb-1 text-muted">{{ line }}</p>
+                                {% endfor %}
+                                
+                                {% if outfit_lines|length > 3 %}
+                                    <p class="text-primary mt-2">
+                                        <i class="fas fa-ellipsis-h me-1"></i> {{ outfit_lines|length|add:"-3" }} more items...
+                                    </p>
+                                {% endif %}
+                                {% endwith %}
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between mt-3">
+                            <span class="text-primary">
+                                <i class="fas fa-eye me-1"></i> View Details
+                            </span>
+                            {% if recommendation.is_customized %}
+                            <span class="badge bg-info bg-opacity-10 text-info">
+                                <i class="fas fa-check-circle me-1"></i> Customized
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        {% empty %}
+        <div class="col-12 text-center py-5">
+            <div class="text-muted mb-4">
+                <i class="fas fa-tshirt" style="font-size: 4rem;"></i>
+            </div>
+            <h3 class="h4 mb-2">No outfit recommendations yet</h3>
+            <p class="text-muted">Recommendations will be generated based on your trip's weather forecast.</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Format outfit descriptions to show only a summary
+        document.querySelectorAll('.outfit-summary').forEach(function(element) {
+            let text = element.textContent.trim();
+            let lines = text.split('\n').filter(line => line.trim() !== '');
+            
+            // Clean up the list markers
+            lines = lines.map(line => line.replace(/^[-•*]\s*/, '').trim()).filter(line => line);
+            
+            // Only show the first 3 lines
+            let displayLines = lines.slice(0, 3);
+            let remainingCount = Math.max(0, lines.length - 3);
+            
+            // Clear the element
+            element.innerHTML = '';
+            
+            // Add the display lines
+            displayLines.forEach(line => {
+                let div = document.createElement('div');
+                div.className = 'mb-1 text-muted';
+                div.textContent = line;
+                element.appendChild(div);
+            });
+            
+            // Add a "more items" indicator if needed
+            if (remainingCount > 0) {
+                let moreDiv = document.createElement('div');
+                moreDiv.className = 'text-primary mt-2';
+                moreDiv.innerHTML = `<i class="fas fa-ellipsis-h me-1"></i> ${remainingCount} more items...`;
+                element.appendChild(moreDiv);
+            }
+        });
+    });
+</script>
+{% endblock %} 

@@ -9,7 +9,7 @@ from django.contrib import messages
 from django.views.decorators.http import require_POST
 import openai
 from django.utils import timezone
-from .models import OutfitRecommendation
+from .models import OutfitRecommendation, OutfitItem
 
 from trips.models import Trip, PackingListItem
 
@@ -35,7 +35,7 @@ def trip_planner(request):
                 longitude=longitude
             )
             messages.success(request, 'Trip created successfully!')
-            return redirect('my_trips')
+            return redirect('trips:my_trips')
         except Exception as e:
             messages.error(request, f'Error creating trip: {str(e)}')
     
@@ -50,7 +50,11 @@ def my_trips(request):
 def view_weather(request, id):
     api_key = os.environ['OPENWEATHER_API_KEY']
 
-    trip = get_object_or_404(Trip, id=id)
+    trip = get_object_or_404(Trip, id=id, user=request.user)
+    
+    # Ensure trip dates are properly formatted strings in the context
+    formatted_start_date = trip.start_date.strftime('%A, %B %d, %Y').lstrip('0')
+    formatted_end_date = trip.end_date.strftime('%A, %B %d, %Y').lstrip('0')
 
     # Using the 2.5 version of the API which is more stable
     url = f"https://api.openweathermap.org/data/2.5/forecast?lat={trip.latitude}&lon={trip.longitude}&units=imperial&appid={api_key}"
@@ -115,8 +119,10 @@ def view_weather(request, id):
             },
             'trip': {
                 'destination': trip.destination,
-                'start_date': trip.start_date.strftime('%A, %B %d, %Y').lstrip('0'),
-                'end_date': trip.end_date.strftime('%A, %B %d, %Y').lstrip('0')
+                'start_date': formatted_start_date,
+                'end_date': formatted_end_date,
+                'raw_start_date': trip.start_date,
+                'raw_end_date': trip.end_date
             }
         }
 
@@ -128,8 +134,10 @@ def view_weather(request, id):
             },
             'trip': {
                 'destination': trip.destination,
-                'start_date': trip.start_date.strftime('%A, %B %d, %Y').lstrip('0'),
-                'end_date': trip.end_date.strftime('%A, %B %d, %Y').lstrip('0')
+                'start_date': formatted_start_date,
+                'end_date': formatted_end_date,
+                'raw_start_date': trip.start_date,
+                'raw_end_date': trip.end_date
             }
         }
     except (KeyError, ValueError) as e:
@@ -140,8 +148,10 @@ def view_weather(request, id):
             },
             'trip': {
                 'destination': trip.destination,
-                'start_date': trip.start_date.strftime('%A, %B %d, %Y').lstrip('0'),
-                'end_date': trip.end_date.strftime('%A, %B %d, %Y').lstrip('0')
+                'start_date': formatted_start_date,
+                'end_date': formatted_end_date,
+                'raw_start_date': trip.start_date,
+                'raw_end_date': trip.end_date
             }
         }
 
@@ -351,6 +361,40 @@ def generate_packing_list(request, trip_id):
     
     return redirect('trips:view_packing_list', id=trip_id)
 
+def extract_items_from_outfit_description(outfit_description):
+    """Helper function to extract and categorize outfit items from description text"""
+    items = []
+    lines = outfit_description.split('\n')
+    
+    for line in lines:
+        line = line.strip()
+        # Look for bullet points or similar indicators
+        if line and (line.startswith('-') or line.startswith('•') or line.startswith('*')):
+            item_text = line.lstrip('-•* ').strip()
+            # Skip empty items or items that look like section headings
+            if not item_text or item_text.endswith(':') or "cultural" in item_text.lower():
+                continue
+                
+            # Simple category determination
+            category = 'other'
+            if any(word in item_text.lower() for word in ['shirt', 'top', 'tee', 't-shirt', 'blouse', 'sweater', 'polo']):
+                category = 'top'
+            elif any(word in item_text.lower() for word in ['pants', 'jeans', 'shorts', 'skirt', 'trouser']):
+                category = 'bottom'
+            elif any(word in item_text.lower() for word in ['jacket', 'coat', 'hoodie', 'cardigan', 'blazer']):
+                category = 'outerwear'
+            elif any(word in item_text.lower() for word in ['shoes', 'boots', 'sandals', 'sneakers', 'footwear']):
+                category = 'footwear'
+            elif any(word in item_text.lower() for word in ['hat', 'cap', 'sunglasses', 'scarf', 'gloves', 'umbrella']):
+                category = 'accessory'
+                
+            items.append({
+                'name': item_text,
+                'category': category
+            })
+    
+    return items
+
 @login_required
 def view_outfit_recommendations(request, id):
     trip = get_object_or_404(Trip, id=id, user=request.user)
@@ -383,27 +427,360 @@ def view_outfit_recommendations(request, id):
                     temp = forecast['main']['feels_like']
                     weather_desc = forecast['weather'][0]['main']
                     
-                    # Generate outfit recommendation using OpenAI
-                    openai.api_key = os.environ.get('OPENAI_API_KEY')
-                    prompt = f"""
-                    Suggest an outfit for a day with the following conditions:
-                    - Temperature: {temp}°F
-                    - Weather: {weather_desc}
-                    - Location: {trip.destination}
-                    - Date: {forecast_date}
+                    # Determine season based on the month and hemisphere
+                    month = forecast_date.month
+                    # Rough approximation of seasons
+                    northern_seasons = {
+                        (12, 1, 2): 'Winter',
+                        (3, 4, 5): 'Spring',
+                        (6, 7, 8): 'Summer',
+                        (9, 10, 11): 'Fall'
+                    }
+                    southern_seasons = {
+                        (12, 1, 2): 'Summer',
+                        (3, 4, 5): 'Fall',
+                        (6, 7, 8): 'Winter',
+                        (9, 10, 11): 'Spring'
+                    }
                     
-                    Please provide a practical and stylish outfit recommendation that's appropriate for the weather.
-                    """
+                    # Determine hemisphere based on latitude
+                    is_northern = float(trip.latitude) >= 0
+                    seasons = northern_seasons if is_northern else southern_seasons
+                    
+                    season = next((s for months, s in seasons.items() if month in months), 'Unknown')
+                    
+                    # Generate outfit recommendation and cultural notes using OpenAI
+                    openai.api_key = os.environ.get('OPENAI_API_KEY')
+                    
+                    # First, get the outfit recommendations only
+                    outfit_prompt = f"""For a day in {trip.destination} with temperature {temp}°F and {weather_desc} weather in {season} season, suggest a practical outfit.
+                    Format your response as a simple list of clothing items ONLY, each on a separate line with a dash prefix.
+                    Example:
+                    - Item 1
+                    - Item 2
+                    - Item 3"""
                     
                     try:
-                        response = openai.ChatCompletion.create(
-                            model="gpt-3.5-turbo",
-                            messages=[
-                                {"role": "system", "content": "You are a helpful fashion advisor."},
-                                {"role": "user", "content": prompt}
-                            ]
+                        # Get outfit recommendations
+                        outfit_response = openai.completions.create(
+                            model="gpt-3.5-turbo-instruct",
+                            prompt=outfit_prompt,
+                            max_tokens=150,
+                            temperature=0.5
                         )
-                        outfit_description = response.choices[0].message.content
+                        outfit_description = outfit_response.choices[0].text.strip()
+                        
+                        # If the outfit doesn't start with a dash, format it
+                        if not outfit_description.strip().startswith('-'):
+                            items = outfit_description.split('\n')
+                            formatted_items = []
+                            for item in items:
+                                item = item.strip()
+                                if item and not item.startswith('-'):
+                                    formatted_items.append(f"- {item}")
+                                elif item:
+                                    formatted_items.append(item)
+                            outfit_description = '\n'.join(formatted_items)
+                        
+                        # Now get cultural notes in a separate call
+                        cultural_prompt = f"""Provide very brief cultural dress tips for visitors to {trip.destination} in 2-3 bullet points max.
+                        Format as bullet points with dash prefix."""
+                        
+                        cultural_response = openai.completions.create(
+                            model="gpt-3.5-turbo-instruct",
+                            prompt=cultural_prompt,
+                            max_tokens=100,
+                            temperature=0.5
+                        )
+                        cultural_notes = cultural_response.choices[0].text.strip()
+                    except Exception as e:
+                        outfit_description = f"Default recommendation for {weather_desc} weather at {temp}°F"
+                        cultural_notes = "Cultural information not available."
+                    
+                    recommendation = OutfitRecommendation.objects.create(
+                        trip=trip,
+                        day=forecast_date,
+                        weather_condition=weather_desc,
+                        temperature=temp,
+                        outfit_description=outfit_description,
+                        cultural_notes=cultural_notes
+                    )
+                    
+                    # Extract and create individual outfit items
+                    try:
+                        # Use the helper function to extract items
+                        outfit_items = extract_items_from_outfit_description(outfit_description)
+                        
+                        # Create the items in the database
+                        for item in outfit_items:
+                            OutfitItem.objects.create(
+                                outfit=recommendation,
+                                name=item['name'],
+                                category=item['category']
+                            )
+                    except Exception as e:
+                        # If parsing fails, don't worry - we still have the full outfit description
+                        pass
+            
+            recommendations = OutfitRecommendation.objects.filter(trip=trip).order_by('day')
+            messages.success(request, 'Outfit recommendations generated successfully!')
+            
+        except requests.exceptions.RequestException:
+            messages.error(request, 'Failed to fetch weather data. Please try again later.')
+        except Exception as e:
+            messages.error(request, f'Error generating outfit recommendations: {str(e)}')
+    
+    # Get category choices from the model for the template
+    category_choices = OutfitItem.CATEGORY_CHOICES
+    
+    context = {
+        'trip': trip,
+        'recommendations': recommendations,
+        'category_choices': category_choices,
+    }
+    return render(request, 'trips/view_outfit_recommendations.html', context)
+
+@login_required
+@require_POST
+def customize_outfit(request, trip_id, recommendation_id):
+    recommendation = get_object_or_404(OutfitRecommendation, id=recommendation_id, trip_id=trip_id, trip__user=request.user)
+    custom_outfit = request.POST.get('custom_outfit')
+    activities = request.POST.get('activities')
+    
+    if custom_outfit:
+        recommendation.outfit_description = custom_outfit
+        recommendation.is_customized = True
+        if activities:
+            recommendation.activities = activities
+        recommendation.save()
+        messages.success(request, 'Outfit recommendation updated successfully!')
+    else:
+        messages.error(request, 'Please provide a custom outfit description.')
+    
+    # Detect if the request came from the detail page
+    referer = request.META.get('HTTP_REFERER', '')
+    if 'outfit-detail' in referer:
+        return redirect('trips:view_outfit_detail', recommendation_id=recommendation_id)
+    else:
+        return redirect('trips:view_outfit_recommendations', id=trip_id)
+
+@login_required
+@require_POST
+def add_outfit_item(request, trip_id, recommendation_id):
+    recommendation = get_object_or_404(OutfitRecommendation, id=recommendation_id, trip_id=trip_id, trip__user=request.user)
+    item_name = request.POST.get('item_name')
+    category = request.POST.get('category')
+    
+    if item_name and category:
+        OutfitItem.objects.create(
+            outfit=recommendation,
+            name=item_name,
+            category=category
+        )
+        recommendation.is_customized = True
+        recommendation.save()
+        messages.success(request, f'Added {item_name} to your outfit!')
+    else:
+        messages.error(request, 'Please provide both item name and category.')
+    
+    # Detect if the request came from the detail page
+    referer = request.META.get('HTTP_REFERER', '')
+    if 'outfit-detail' in referer:
+        return redirect('trips:view_outfit_detail', recommendation_id=recommendation_id)
+    else:
+        return redirect('trips:view_outfit_recommendations', id=trip_id)
+
+@login_required
+@require_POST
+def remove_outfit_item(request, trip_id, recommendation_id, item_id):
+    item = get_object_or_404(OutfitItem, id=item_id, outfit_id=recommendation_id, outfit__trip_id=trip_id, outfit__trip__user=request.user)
+    item_name = item.name
+    item.delete()
+    
+    # Mark the outfit as customized
+    recommendation = get_object_or_404(OutfitRecommendation, id=recommendation_id)
+    recommendation.is_customized = True
+    recommendation.save()
+    
+    messages.success(request, f'Removed {item_name} from your outfit.')
+    
+    # Detect if the request came from the detail page
+    referer = request.META.get('HTTP_REFERER', '')
+    if 'outfit-detail' in referer:
+        return redirect('trips:view_outfit_detail', recommendation_id=recommendation_id)
+    else:
+        return redirect('trips:view_outfit_recommendations', id=trip_id)
+
+@login_required
+@require_POST
+def update_activities(request, trip_id, recommendation_id):
+    recommendation = get_object_or_404(OutfitRecommendation, id=recommendation_id, trip_id=trip_id, trip__user=request.user)
+    activities = request.POST.get('activities')
+    
+    recommendation.activities = activities
+    recommendation.save()
+    
+    messages.success(request, 'Activities updated successfully!')
+    
+    # Detect if the request came from the detail page
+    referer = request.META.get('HTTP_REFERER', '')
+    if 'outfit-detail' in referer:
+        return redirect('trips:view_outfit_detail', recommendation_id=recommendation_id)
+    else:
+        return redirect('trips:view_outfit_recommendations', id=trip_id)
+
+@login_required
+def all_outfits(request):
+    user_trips = Trip.objects.filter(user=request.user)
+    all_recommendations = OutfitRecommendation.objects.filter(trip__in=user_trips).order_by('-day')
+    
+    # If there are no recommendations at all, generate them for all trips
+    if not all_recommendations.exists():
+        for trip in user_trips:
+            # Only generate for trips that don't have recommendations
+            if not OutfitRecommendation.objects.filter(trip=trip).exists():
+                try:
+                    # Get weather data for the trip
+                    api_key = os.environ['OPENWEATHER_API_KEY']
+                    weather_url = f"https://api.openweathermap.org/data/2.5/forecast?lat={trip.latitude}&lon={trip.longitude}&units=imperial&appid={api_key}"
+                    
+                    weather_response = requests.get(weather_url)
+                    weather_response.raise_for_status()
+                    weather_data = weather_response.json()
+                    
+                    for forecast in weather_data['list']:
+                        forecast_time = datetime.fromtimestamp(forecast['dt'])
+                        forecast_date = forecast_time.date()
+                        
+                        if forecast_date < trip.start_date:
+                            continue
+                            
+                        if forecast_date > trip.end_date:
+                            break
+                        
+                        # Only create one recommendation per day
+                        if not OutfitRecommendation.objects.filter(trip=trip, day=forecast_date).exists():
+                            temp = forecast['main']['feels_like']
+                            weather_desc = forecast['weather'][0]['main']
+                            
+                            # Generate outfit recommendation using OpenAI
+                            openai.api_key = os.environ.get('OPENAI_API_KEY')
+                            
+                            # Simple outfit request
+                            outfit_prompt = f"""For a day in {trip.destination} with temperature {temp}°F and {weather_desc} weather, suggest a simple outfit.
+                            Format your response as a list of clothing items, each on a separate line with a dash prefix."""
+                            
+                            try:
+                                response = openai.completions.create(
+                                    model="gpt-3.5-turbo-instruct",
+                                    prompt=outfit_prompt,
+                                    max_tokens=100,
+                                    temperature=0.5
+                                )
+                                outfit_description = response.choices[0].text.strip()
+                                
+                                # Ensure proper formatting
+                                if not outfit_description.strip().startswith('-'):
+                                    items = outfit_description.split('\n')
+                                    formatted_items = []
+                                    for item in items:
+                                        item = item.strip()
+                                        if item and not item.startswith('-'):
+                                            formatted_items.append(f"- {item}")
+                                        elif item:
+                                            formatted_items.append(item)
+                                    outfit_description = '\n'.join(formatted_items)
+                            except Exception as e:
+                                outfit_description = f"Default recommendation for {weather_desc} weather at {temp}°F"
+                            
+                            OutfitRecommendation.objects.create(
+                                trip=trip,
+                                day=forecast_date,
+                                weather_condition=weather_desc,
+                                temperature=temp,
+                                outfit_description=outfit_description
+                            )
+                    
+                    messages.success(request, f'Outfit recommendations generated for {trip.destination}!')
+                except Exception as e:
+                    messages.error(request, f'Error generating recommendations for {trip.destination}: {str(e)}')
+        
+        # Refresh recommendations after generating
+        all_recommendations = OutfitRecommendation.objects.filter(trip__in=user_trips).order_by('-day')
+    
+    context = {
+        'recommendations': all_recommendations,
+    }
+    
+    return render(request, 'trips/all_outfits.html', context)
+
+@login_required
+@require_POST
+def generate_all_outfits(request):
+    user_trips = Trip.objects.filter(user=request.user)
+    
+    if not user_trips.exists():
+        messages.info(request, "You don't have any trips yet. Create a trip first!")
+        return redirect('trips:trip_planner')
+    
+    generated_count = 0
+    error_count = 0
+    
+    for trip in user_trips:
+        try:
+            # Get weather data for the trip
+            api_key = os.environ['OPENWEATHER_API_KEY']
+            weather_url = f"https://api.openweathermap.org/data/2.5/forecast?lat={trip.latitude}&lon={trip.longitude}&units=imperial&appid={api_key}"
+            
+            weather_response = requests.get(weather_url)
+            weather_response.raise_for_status()
+            weather_data = weather_response.json()
+            
+            # Keep track of if we created any new recommendations for this trip
+            trip_generated = False
+            
+            for forecast in weather_data['list']:
+                forecast_time = datetime.fromtimestamp(forecast['dt'])
+                forecast_date = forecast_time.date()
+                
+                if forecast_date < trip.start_date:
+                    continue
+                    
+                if forecast_date > trip.end_date:
+                    break
+                
+                # Only create one recommendation per day
+                if not OutfitRecommendation.objects.filter(trip=trip, day=forecast_date).exists():
+                    temp = forecast['main']['feels_like']
+                    weather_desc = forecast['weather'][0]['main']
+                    
+                    # Generate outfit recommendation using OpenAI
+                    openai.api_key = os.environ.get('OPENAI_API_KEY')
+                    
+                    # Simple outfit request
+                    outfit_prompt = f"""For a day in {trip.destination} with temperature {temp}°F and {weather_desc} weather, suggest a simple outfit.
+                    Format your response as a list of clothing items, each on a separate line with a dash prefix."""
+                    
+                    try:
+                        response = openai.completions.create(
+                            model="gpt-3.5-turbo-instruct",
+                            prompt=outfit_prompt,
+                            max_tokens=100,
+                            temperature=0.5
+                        )
+                        outfit_description = response.choices[0].text.strip()
+                        
+                        # Ensure proper formatting
+                        if not outfit_description.strip().startswith('-'):
+                            items = outfit_description.split('\n')
+                            formatted_items = []
+                            for item in items:
+                                item = item.strip()
+                                if item and not item.startswith('-'):
+                                    formatted_items.append(f"- {item}")
+                                elif item:
+                                    formatted_items.append(item)
+                            outfit_description = '\n'.join(formatted_items)
                     except Exception as e:
                         outfit_description = f"Default recommendation for {weather_desc} weather at {temp}°F"
                     
@@ -414,36 +791,22 @@ def view_outfit_recommendations(request, id):
                         temperature=temp,
                         outfit_description=outfit_description
                     )
+                    trip_generated = True
             
-            recommendations = OutfitRecommendation.objects.filter(trip=trip).order_by('day')
-            messages.success(request, 'Outfit recommendations generated successfully!')
-            
-        except requests.exceptions.RequestException:
-            messages.error(request, 'Failed to fetch weather data. Please try again later.')
-        except Exception as e:
-            messages.error(request, f'Error generating outfit recommendations: {str(e)}')
+            if trip_generated:
+                generated_count += 1
+        except Exception:
+            error_count += 1
     
-    context = {
-        'trip': trip,
-        'recommendations': recommendations,
-    }
-    return render(request, 'trips/view_outfit_recommendations.html', context)
-
-@login_required
-@require_POST
-def customize_outfit(request, trip_id, recommendation_id):
-    recommendation = get_object_or_404(OutfitRecommendation, id=recommendation_id, trip_id=trip_id, trip__user=request.user)
-    custom_outfit = request.POST.get('custom_outfit')
+    if generated_count > 0:
+        messages.success(request, f'Generated outfit recommendations for {generated_count} trip(s)!')
+    elif error_count == 0:
+        messages.info(request, 'All trips already have outfit recommendations!')
     
-    if custom_outfit:
-        recommendation.outfit_description = custom_outfit
-        recommendation.is_customized = True
-        recommendation.save()
-        messages.success(request, 'Outfit recommendation updated successfully!')
-    else:
-        messages.error(request, 'Please provide a custom outfit description.')
+    if error_count > 0:
+        messages.error(request, f'Failed to generate recommendations for {error_count} trip(s)')
     
-    return redirect('trips:view_outfit_recommendations', id=trip_id)
+    return redirect('trips:all_outfits')
 
 @login_required
 @require_POST
@@ -470,28 +833,22 @@ def generate_smart_packing_list(request, trip_id):
         
         # Generate packing list using OpenAI
         openai.api_key = os.environ.get('OPENAI_API_KEY')
-        prompt = f"""
-        Generate a comprehensive packing list for a trip with the following details:
-        - Destination: {trip.destination}
-        - Duration: {(trip.end_date - trip.start_date).days + 1} days
-        - Date range: {trip.start_date} to {trip.end_date}
-        - Weather forecast: {json.dumps(weather_summary)}
-
-        Please organize items by category (Clothing, Toiletries, Electronics, etc.) and consider the weather conditions.
-        Format the response as a JSON object with categories as keys and arrays of items as values.
-        """
         
-        response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": "You are a helpful travel planning assistant. Respond only with valid JSON."},
-                {"role": "user", "content": prompt}
-            ]
+        # More concise prompt to save tokens
+        prompt = f"""Trip: {trip.destination}, Days: {(trip.end_date - trip.start_date).days + 1}, Weather: {weather_summary[0]['weather'] if weather_summary else 'Unknown'}, Temp: {weather_summary[0]['temp'] if weather_summary else 'Unknown'}°F.
+        Create minimal packing list with categories: Clothing, Toiletries, Electronics, Miscellaneous.
+        Format: JSON object with category names as keys, item arrays as values."""
+        
+        response = openai.completions.create(
+            model="gpt-3.5-turbo-instruct",  # Cheaper model
+            prompt=prompt,
+            max_tokens=300,  # Limit response size
+            temperature=0.5  # Lower creativity for more predictable responses
         )
         
         # Parse the response and create packing list items
         try:
-            items_by_category = json.loads(response.choices[0].message.content)
+            items_by_category = json.loads(response.choices[0].text)
             
             # Delete existing auto-generated items
             PackingListItem.objects.filter(trip=trip, is_auto_generated=True).delete()
@@ -526,3 +883,165 @@ def generate_smart_packing_list(request, trip_id):
         messages.error(request, f'Error generating smart packing list: {str(e)}')
     
     return redirect('trips:view_packing_list', id=trip_id)
+
+@login_required
+@require_POST
+def regenerate_outfit(request, trip_id, recommendation_id):
+    recommendation = get_object_or_404(OutfitRecommendation, id=recommendation_id, trip_id=trip_id, trip__user=request.user)
+    trip = recommendation.trip
+    
+    try:
+        # Determine season based on the month and hemisphere
+        month = recommendation.day.month
+        # Rough approximation of seasons
+        northern_seasons = {
+            (12, 1, 2): 'Winter',
+            (3, 4, 5): 'Spring',
+            (6, 7, 8): 'Summer',
+            (9, 10, 11): 'Fall'
+        }
+        southern_seasons = {
+            (12, 1, 2): 'Summer',
+            (3, 4, 5): 'Fall',
+            (6, 7, 8): 'Winter',
+            (9, 10, 11): 'Spring'
+        }
+        
+        # Determine hemisphere based on latitude
+        is_northern = float(trip.latitude) >= 0
+        seasons = northern_seasons if is_northern else southern_seasons
+        
+        season = next((s for months, s in seasons.items() if month in months), 'Unknown')
+        
+        # Generate outfit recommendation and cultural notes using OpenAI
+        openai.api_key = os.environ.get('OPENAI_API_KEY')
+        
+        # Include activities in the prompt if they exist
+        activities_text = ""
+        if recommendation.activities:
+            activities_text = f"Planned Activities: {recommendation.activities}"
+        
+        # First, get the outfit recommendations only
+        outfit_prompt = f"""For a day in {trip.destination} with temperature {recommendation.temperature}°F and {recommendation.weather_condition} weather in {season} season, suggest a practical outfit.
+        Format your response as a simple list of clothing items ONLY, each on a separate line with a dash prefix.
+        Example:
+        - Item 1
+        - Item 2
+        - Item 3
+        {activities_text}"""
+        
+        try:
+            # Get outfit recommendations
+            outfit_response = openai.completions.create(
+                model="gpt-3.5-turbo-instruct",
+                prompt=outfit_prompt,
+                max_tokens=150,
+                temperature=0.5
+            )
+            outfit_description = outfit_response.choices[0].text.strip()
+            
+            # If the outfit doesn't start with a dash, format it
+            if not outfit_description.strip().startswith('-'):
+                items = outfit_description.split('\n')
+                formatted_items = []
+                for item in items:
+                    item = item.strip()
+                    if item and not item.startswith('-'):
+                        formatted_items.append(f"- {item}")
+                    elif item:
+                        formatted_items.append(item)
+                outfit_description = '\n'.join(formatted_items)
+            
+            # Now get cultural notes in a separate call
+            cultural_prompt = f"""Provide very brief cultural dress tips for visitors to {trip.destination} in 2-3 bullet points max.
+            Format as bullet points with dash prefix."""
+            
+            cultural_response = openai.completions.create(
+                model="gpt-3.5-turbo-instruct",
+                prompt=cultural_prompt,
+                max_tokens=100,
+                temperature=0.5
+            )
+            cultural_notes = cultural_response.choices[0].text.strip()
+            
+            # Update the recommendation
+            recommendation.outfit_description = outfit_description
+            recommendation.cultural_notes = cultural_notes
+            recommendation.is_customized = False  # Reset customization flag
+            recommendation.save()
+            
+            # Clear existing outfit items
+            recommendation.items.all().delete()
+            
+            # Extract and create individual outfit items
+            try:
+                # Use the helper function to extract items
+                outfit_items = extract_items_from_outfit_description(outfit_description)
+                
+                # Create the items in the database
+                for item in outfit_items:
+                    OutfitItem.objects.create(
+                        outfit=recommendation,
+                        name=item['name'],
+                        category=item['category']
+                    )
+            except Exception as e:
+                # If parsing fails, don't worry - we still have the full outfit description
+                pass
+                
+            messages.success(request, 'Outfit recommendation regenerated successfully!')
+            
+        except Exception as e:
+            messages.error(request, f'Error generating outfit recommendation: {str(e)}')
+    
+    except Exception as e:
+        messages.error(request, f'Error processing request: {str(e)}')
+    
+    # Detect if the request came from the detail page
+    referer = request.META.get('HTTP_REFERER', '')
+    if 'outfit-detail' in referer:
+        return redirect('trips:view_outfit_detail', recommendation_id=recommendation_id)
+    else:
+        return redirect('trips:view_outfit_recommendations', id=trip_id)
+
+@login_required
+def view_outfit_detail(request, recommendation_id):
+    # Get the recommendation and verify that it belongs to the current user
+    recommendation = get_object_or_404(OutfitRecommendation, id=recommendation_id, trip__user=request.user)
+    trip = recommendation.trip
+    
+    # Get category choices from the model for the template
+    category_choices = OutfitItem.CATEGORY_CHOICES
+    
+    context = {
+        'trip': trip,
+        'recommendation': recommendation,
+        'category_choices': category_choices,
+    }
+    return render(request, 'trips/outfit_detail.html', context)
+
+@login_required
+def packing_list_stats(request, trip_id):
+    """API endpoint to get packing list statistics for AJAX updates"""
+    trip = get_object_or_404(Trip, id=trip_id, user=request.user)
+    items = PackingListItem.objects.filter(trip=trip)
+    
+    # Calculate overall stats
+    total_items = items.count()
+    packed_items = items.filter(is_packed=True).count()
+    
+    # Calculate per-category stats
+    categories = {}
+    for item in items:
+        if item.category not in categories:
+            categories[item.category] = {"total": 0, "packed": 0}
+        
+        categories[item.category]["total"] += 1
+        if item.is_packed:
+            categories[item.category]["packed"] += 1
+    
+    return JsonResponse({
+        'total_items': total_items,
+        'packed_items': packed_items,
+        'categories': categories
+    })

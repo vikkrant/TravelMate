@@ -40,6 +40,8 @@ class OutfitRecommendation(models.Model):
     temperature = models.DecimalField(max_digits=5, decimal_places=2)
     outfit_description = models.TextField()
     is_customized = models.BooleanField(default=False)
+    cultural_notes = models.TextField(blank=True, null=True)  # Store cultural dress codes and customs
+    activities = models.CharField(max_length=255, blank=True, null=True)  # Store planned activities for the day
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -47,4 +49,26 @@ class OutfitRecommendation(models.Model):
         return f"Outfit for {self.day} - {self.weather_condition}"
 
     class Meta:
-        ordering = ['day'] 
+        ordering = ['day']
+
+class OutfitItem(models.Model):
+    CATEGORY_CHOICES = (
+        ('top', 'Top'),
+        ('bottom', 'Bottom'),
+        ('outerwear', 'Outerwear'),
+        ('footwear', 'Footwear'),
+        ('accessory', 'Accessory'),
+        ('other', 'Other'),
+    )
+    
+    id = models.AutoField(primary_key=True)
+    outfit = models.ForeignKey(OutfitRecommendation, on_delete=models.CASCADE, related_name='items')
+    name = models.CharField(max_length=200)
+    category = models.CharField(max_length=50, choices=CATEGORY_CHOICES)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"{self.name} ({self.get_category_display()})"
+    
+    class Meta:
+        ordering = ['category', 'name'] 

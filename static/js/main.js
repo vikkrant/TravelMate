@@ -11,8 +11,10 @@ document.querySelectorAll('a[href^="#"]').forEach(anchor => {
 // Navbar background change on scroll
 window.addEventListener('scroll', function() {
     if (window.scrollY > 50) {
-        document.querySelector('.navbar').style.backgroundColor = 'rgba(255, 255, 255, 0.95)';
+        document.querySelector('.navbar').style.backgroundColor = 'var(--navbar-bg)';
     } else {
-        document.querySelector('.navbar').style.backgroundColor = 'white';
+        document.querySelector('.navbar').style.backgroundColor = 'var(--navbar-bg)';
     }
-}); 
+});
+
+// Theme toggle is now handled in base.html 
