@@ -2,72 +2,95 @@
 {% load static %}
 
 {% block content %}
-    <div class="text-center pt-5">
-        <h3 style="color: var(--primary-color)">{{ trip.destination }}</h3>
-        <h5 style="color: var(--dark-gray)">{{ trip.start_date }}</h5>
-        <h5 style="color: var(--primary-color)"><span>To </span><span style="color: var(--dark-gray)">{{ trip.end_date }}*</span></h5>
+<div class="container py-5">
+    <div class="row mb-4">
+        <div class="col-12 d-flex justify-content-between align-items-center">
+            <div>
+                <h2 style="color: var(--primary-color); margin-bottom: 0.25rem;">
+                    {{ trip.destination }} 
+                </h2>
+                <div style="color: var(--dark-gray); font-size: 1.25rem; font-weight: 500;">
+                    {{ trip.start_date }} - {{ trip.end_date }}*
+                </div>
+            </div>
+            <div>
+                <a href="{% url 'trips:my_trips' %}" class="btn btn-primary">
+                    <i class="fas fa-arrow-left me-2"></i> Back to Trips
+                </a>
+            </div>
+        </div>
     </div>
-    <div class="row d-flex justify-content-center py-2 px-3">
-        {% if weather.error %}
-            <div class="col-12 col-md-8">
-                <div class="card text-body" style="border-radius: 15px;">
-                    <div class="card-body p-3">
-                        <div class="text-center">
-                            <i class="fa-solid fa-triangle-exclamation" style="color: var(--primary-color); font-size: 2.5rem;"></i>
-                            <h5 class="mt-3" style="color: var(--primary-color)">{{ weather.error }}</h5>
-                            <p class="text-muted">Please try again later or check your internet connection.</p>
+    
+    {% if weather.error %}
+    <div class="row">
+        <div class="col-12 col-md-8 mx-auto">
+            <div class="card text-body" style="border-radius: 15px;">
+                <div class="card-body p-3">
+                    <div class="text-center">
+                        <i class="fa-solid fa-triangle-exclamation" style="color: var(--primary-color); font-size: 2.5rem;"></i>
+                        <h5 class="mt-3" style="color: var(--primary-color)">{{ weather.error }}</h5>
+                        <p class="text-muted">Please try again later or check your internet connection.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="row justify-content-center">
+        {% for day in weather.days %}
+        <div class="p-2 col-6 col-sm-5 col-md-4 col-lg-3 col-xxl-2">
+            <div class="card text-body shadow-sm" style="border-radius: 15px;">
+                <div class="card-body p-3">
+                    <div style="overflow:hidden">
+                        <div class="float-start">
+                            <h5 class="mb-0 font-weight-bold">{{ day.day }}</h5>
+                            <span class="small" style="color: var(--dark-gray)">{{ day.date }}</span>
+                        </div>
+                        <div class="float-end">
+                            <h5 class="display-6 mb-0 font-weight-bold" style="color: var(--primary-color); line-height: 0.9;">
+                                {{ day.temp }}
+                            </h5>
+                            <span class="small" style="color: var(--dark-gray)">{{ day.description }}</span>
+                        </div>
+                    </div>
+                    <div class="d-flex mt-3">
+                        <div class="flex-grow-1" style="font-size: 1.1rem;">
+                            <div class="mb-1">
+                                <i class="fa-solid fa-wind fa-fw" style="color: var(--primary-color)"></i>
+                                <span class="ms-1">{{ day.wind_speed }}</span>
+                            </div>
+                            <div class="mb-1">
+                                <i class="fa-solid fa-droplet fa-fw" style="color: var(--primary-color)"></i>
+                                <span class="ms-1">{{ day.humidity }}</span>
+                            </div>
+                            <div class="mb-1">
+                                <i class="fa-solid fa-cloud-rain fa-fw" style="color: var(--primary-color)"></i>
+                                <span class="ms-1">{{ day.rain_chance }}</span>
+                            </div>
+                            <div class="mb-1">
+                                <i style="color: var(--primary-color)" class="fa-solid fa-cloud fa-fw"></i>
+                                <span class="ms-1">{{ day.cloud_cover }}</span>
+                            </div>
+                        </div>
+                        <div>
+                            <i class="{{ day.icon }}" style="color: var(--primary-color); font-size: 3rem; bottom: 8px; right: 8px; position: absolute"></i>
                         </div>
                     </div>
                 </div>
             </div>
-        {% else %}
-            {% for day in weather.days %}
-                <div class="p-1 col-6 col-sm-5 col-md-4 col-lg-3 col-xxl-2">
-                    <div class="card text-body" style="border-radius: 15px;">
-                        <div class="card-body p-3">
-                            <div style="overflow:hidden">
-                                <div class="float-start">
-                                    <h6 class="mb-0 font-weight-bold">{{ day.day }}</h6>
-                                    <span class="small" style="color: var(--dark-gray)">{{ day.date }}</span>
-                                </div>
-                                <div class="float-end">
-                                  <h6 class="display-6 mb-0 font-weight-bold" style="color: var(--primary-color); line-height: 0.9;">
-                                      {{ day.temp }}
-                                  </h6>
-                                  <span class="small" style="color: var(--dark-gray)">{{ day.description }}</span>
-                                </div>
-                            </div>
-                            <div class="d-flex">
-                                <div class="flex-grow-1" style="font-size: 1rem;">
-                                    <div>
-                                        <i class="fa-solid fa-wind fa-fw" style="color: var(--primary-color)"></i>
-                                        <span class="ms-1">{{ day.wind_speed }}</span>
-                                    </div>
-                                    <div>
-                                        <i class="fa-solid fa-droplet fa-fw" style="color: var(--primary-color)"></i>
-                                        <span class="ms-1">{{ day.humidity }}</span>
-                                    </div>
-                                    <div>
-                                        <i class="fa-solid fa-cloud-rain fa-fw" style="color: var(--primary-color)"></i>
-                                        <span class="ms-1">{{ day.rain_chance }}</span>
-                                    </div>
-                                    <div>
-                                        <i style="color: var(--primary-color)" class="fa-solid fa-cloud fa-fw"></i>
-                                        <span class="ms-1">{{ day.cloud_cover }}</span>
-                                    </div>
-                                  </div>
-                                  <div>
-                                      <i class="{{ day.icon }}" style="color: var(--primary-color); font-size: 2.5rem; bottom: 8px; right: 8px; position: absolute"></i>
-                                  </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            {% empty %}
-                <h6>It looks like your trip has no forecast data yet. Come back later closer to your planned trip date!</h6>
-                <br><br>
-            {% endfor %}
-        {% endif %}
-        <h7>*Forecasts limited to 8 days</h7>
+        </div>
+        {% empty %}
+        <div class="col-12 text-center">
+            <h6>It looks like your trip has no forecast data yet. Come back later closer to your planned trip date!</h6>
+        </div>
+        {% endfor %}
     </div>
+    {% endif %}
+    
+    <div class="row mt-3">
+        <div class="col-12">
+            <small class="text-muted">*Forecasts limited to 8 days</small>
+        </div>
+    </div>
+</div>
 {% endblock %}

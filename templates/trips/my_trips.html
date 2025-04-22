@@ -32,9 +32,17 @@
                                 {{ trip.start_date|date:"M d, Y" }} - {{ trip.end_date|date:"M d, Y" }}
                             </p>
                             <div class="d-grid gap-2">
-                                <a href="{% url 'trips:view_weather' trip.id %}" class="btn btn-primary">
-                                    <i class="fas fa-cloud-sun me-2"></i>View Weather
-                                </a>
+                                <div class="btn-group">
+                                    <a href="{% url 'trips:view_weather' trip.id %}" class="btn btn-primary">
+                                        <i class="fas fa-cloud-sun me-2"></i>Weather
+                                    </a>
+                                    <a href="{% url 'trips:view_outfit_recommendations' trip.id %}" class="btn btn-primary">
+                                        <i class="fas fa-tshirt me-2"></i>Outfits
+                                    </a>
+                                    <a href="{% url 'trips:view_packing_list' trip.id %}" class="btn btn-primary">
+                                        <i class="fas fa-suitcase me-2"></i>Packing List
+                                    </a>
+                                </div>
                                 <div class="btn-group">
                                     <a href="{% url 'trips:edit_trip' trip.id %}" class="btn btn-outline-primary">
                                         <i class="fas fa-edit me-2"></i>Edit

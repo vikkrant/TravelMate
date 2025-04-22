@@ -5,18 +5,25 @@
     --text-color: #333;
     --light-gray: #f5f5f5;
     --dark-gray: #666;
+    --bg-color: #fff;
+    --card-bg: #fff;
+    --navbar-bg: #fff;
+    --footer-bg: #333;
+    --footer-text: #fff;
+    --border-color: rgba(0,0,0,0.1);
 }
 
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     color: var(--text-color);
     line-height: 1.6;
+    background-color: var(--bg-color);
 }
 
 /* Navbar Styles */
 .navbar {
-    background-color: white;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    background-color: var(--navbar-bg);
+    box-shadow: 0 2px 4px var(--border-color);
     padding: 1rem 0;
 }
 
@@ -76,8 +83,8 @@ body {
     text-align: center;
     padding: 2rem;
     border-radius: 10px;
-    background-color: white;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    background-color: var(--card-bg);
+    box-shadow: 0 4px 6px var(--border-color);
     transition: transform 0.3s ease;
 }
 
@@ -105,9 +112,9 @@ body {
 .step-card {
     text-align: center;
     padding: 2rem;
-    background-color: white;
+    background-color: var(--card-bg);
     border-radius: 10px;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 6px var(--border-color);
 }
 
 .step-number {
@@ -126,8 +133,8 @@ body {
 /* Footer */
 .footer {
     padding: 4rem 0;
-    background-color: #333;
-    color: white;
+    background-color: var(--footer-bg);
+    color: var(--footer-text);
 }
 
 .footer h5 {
@@ -160,6 +167,34 @@ body {
     border-color: var(--secondary-color);
 }
 
+.btn-purple {
+    background-color: #6f42c1;
+    border-color: #6f42c1;
+    color: white;
+    padding: 0.5rem 1.5rem;
+}
+
+.btn-purple:hover {
+    background-color: #5a32a3;
+    border-color: #5a32a3;
+    color: white;
+}
+
+/* Outfits navigation button */
+.nav-outfits {
+    background-color: var(--primary-color);
+    color: white !important;
+    border-radius: 5px;
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+    border-left: 2px solid white;
+    margin-left: 2px;
+}
+
+.nav-outfits:hover {
+    background-color: var(--secondary-color);
+}
+
 .btn-outline-primary {
     color: var(--primary-color);
     border-color: var(--primary-color);
@@ -168,6 +203,64 @@ body {
 .btn-outline-primary:hover {
     background-color: var(--primary-color);
     border-color: var(--primary-color);
+}
+
+/* Compatibility Classes for Tailwind/Bootstrap mix */
+.hidden {
+    display: none !important;
+}
+
+.container.mx-auto {
+    width: 100%;
+    padding-right: 1rem;
+    padding-left: 1rem;
+    margin-right: auto;
+    margin-left: auto;
+}
+
+.text-3xl {
+    font-size: 1.875rem;
+    line-height: 2.25rem;
+}
+
+.font-bold {
+    font-weight: 700;
+}
+
+.font-medium {
+    font-weight: 500;
+}
+
+.text-gray-600 {
+    color: #4b5563;
+}
+
+.grid {
+    display: grid;
+}
+
+.grid-cols-1 {
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+}
+
+@media (min-width: 768px) {
+    .md\:grid-cols-2 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (min-width: 1024px) {
+    .lg\:grid-cols-3 {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+.gap-6 {
+    gap: 1.5rem;
+}
+
+.rounded-lg {
+    border-radius: 0.5rem;
 }
 
 /* Responsive Design */
@@ -206,8 +299,9 @@ body {
     margin: 0 auto;
     padding: 2rem;
     border-radius: 10px;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    background-color: white;
+    box-shadow: 0 4px 10px var(--border-color);
+    background-color: var(--card-bg);
+    overflow: hidden;
 }
 
 .auth-card .card-header {
@@ -229,6 +323,9 @@ body {
 .auth-card .form-control {
     padding: 0.75rem 1rem;
     border-radius: 5px;
+    background-color: var(--bg-color);
+    border: 1px solid var(--border-color);
+    color: var(--text-color);
 }
 
 .auth-card .form-control:focus {
@@ -258,4 +355,9 @@ body {
 
 .auth-card a:hover {
     text-decoration: underline;
+}
+
+/* Progress bar */
+.progress-thin {
+    height: 10px;
 } 

@@ -1,0 +1,204 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Outfit Details - {{ recommendation.day|date:"l, F j" }}{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row mb-4">
+        <div class="col-12 d-flex justify-content-between align-items-center">
+            <div>
+                <h1 class="mb-2">Outfit Details</h1>
+                <p class="text-muted">
+                    For {{ recommendation.day|date:"l, F j" }} in <span class="fw-medium">{{ trip.destination }}</span>
+                </p>
+            </div>
+            <a href="{% url 'trips:view_outfit_recommendations' trip.id %}" class="btn btn-primary">
+                <i class="fas fa-arrow-left me-2"></i> Back to Trip Outfits
+            </a>
+        </div>
+    </div>
+
+    {% if messages %}
+    <div class="row mb-4">
+        <div class="col-12">
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">
+                {{ message }}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary bg-gradient text-white">
+                    <h5 class="card-title mb-2">{{ recommendation.day|date:"l, F j" }}</h5>
+                    <div class="d-flex align-items-center">
+                        <i class="fas {% if recommendation.weather_condition == 'Clear' %}fa-sun text-warning
+                              {% elif recommendation.weather_condition == 'Rain' %}fa-cloud-rain text-info
+                              {% elif recommendation.weather_condition == 'Clouds' %}fa-cloud text-light
+                              {% elif recommendation.weather_condition == 'Snow' %}fa-snowflake text-light
+                              {% else %}fa-cloud text-light{% endif %} fa-2x me-3"></i>
+                        <div>
+                            <span class="fs-4 fw-bold">{{ recommendation.temperature }}°F</span>
+                            <span class="ms-2 text-light">{{ recommendation.weather_condition }}</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card-body">
+                    <!-- Activities Section -->
+                    <div class="mb-3">
+                        <button class="btn btn-sm btn-outline-primary mb-2" onclick="toggleActivitiesForm('{{ recommendation.id }}')">
+                            <i class="fas fa-hiking me-1"></i> {{ recommendation.activities|yesno:"Update Activities,Add Activities" }}
+                        </button>
+                        
+                        {% if recommendation.activities %}
+                        <div class="alert alert-info py-2 px-3 mb-3">
+                            <small class="fw-bold mb-1 d-block"><i class="fas fa-calendar-day me-1"></i> Planned Activities:</small>
+                            <p class="mb-0 small">{{ recommendation.activities }}</p>
+                        </div>
+                        {% endif %}
+                        
+                        <form id="activities-form-{{ recommendation.id }}" 
+                              action="{% url 'trips:update_activities' trip.id recommendation.id %}" 
+                              method="POST" 
+                              class="d-none mt-2 mb-3">
+                            {% csrf_token %}
+                            <div class="form-floating mb-2">
+                                <input type="text" class="form-control" id="activities-{{ recommendation.id }}" 
+                                       name="activities" placeholder="e.g., Hiking, Museum Visit, Beach" 
+                                       value="{{ recommendation.activities|default:'' }}">
+                                <label for="activities-{{ recommendation.id }}">Planned Activities</label>
+                            </div>
+                            <div class="d-flex justify-content-end">
+                                <button type="button" 
+                                        onclick="toggleActivitiesForm('{{ recommendation.id }}')"
+                                        class="btn btn-sm btn-link text-secondary me-2">
+                                    Cancel
+                                </button>
+                                <button type="submit" 
+                                        class="btn btn-sm btn-primary">
+                                    Save Activities
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Outfit Recommendations -->
+                    <div class="bg-light rounded p-3 mb-4">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <h6 class="text-secondary fw-medium mb-0">Recommended Outfit:</h6>
+                            
+                            {% if 'Default recommendation for' in recommendation.outfit_description %}
+                            <form action="{% url 'trips:regenerate_outfit' trip.id recommendation.id %}" method="POST" class="d-inline">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-sync-alt me-1"></i> Regenerate
+                                </button>
+                            </form>
+                            {% else %}
+                            <form action="{% url 'trips:regenerate_outfit' trip.id recommendation.id %}" method="POST" class="d-inline">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-outline-secondary">
+                                    <i class="fas fa-sync-alt me-1"></i> Refresh
+                                </button>
+                            </form>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="outfit-description">
+                            {{ recommendation.outfit_description|linebreaks }}
+                        </div>
+
+                        <!-- Packing List Integration -->
+                        <div class="mt-3 d-flex align-items-center justify-content-between">
+                            <a href="{% url 'trips:view_packing_list' trip.id %}" class="btn btn-outline-primary">
+                                <i class="fas fa-suitcase me-2"></i>View Packing List
+                            </a>
+                            <form action="{% url 'trips:sync_outfit_to_packing_list' trip.id recommendation.id %}" method="POST" class="d-inline">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-success">
+                                    <i class="fas fa-plus me-2"></i>Add to Packing List
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                    
+                    <!-- Cultural Notes Section -->
+                    {% if recommendation.cultural_notes %}
+                    <div class="card border-info border-opacity-50 shadow-sm mb-4">
+                        <div class="card-header bg-info bg-opacity-10">
+                            <h6 class="text-info fw-medium mb-0">
+                                <i class="fas fa-globe-americas me-2"></i>Cultural Dress Tips
+                            </h6>
+                        </div>
+                        <div class="card-body py-2">
+                            <p class="text-muted small mb-0">{{ recommendation.cultural_notes|linebreaks }}</p>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Customize Button -->
+                    <div class="mt-4">
+                        <button onclick="toggleCustomizeForm('{{ recommendation.id }}')" 
+                                class="btn btn-link text-primary p-0">
+                            <i class="fas {% if recommendation.is_customized %}fa-check-circle{% else %}fa-edit{% endif %} me-2"></i>
+                            {% if recommendation.is_customized %}
+                            <span>Update Custom Outfit</span>
+                            {% else %}
+                            <span>Customize Full Outfit</span>
+                            {% endif %}
+                        </button>
+                        
+                        <form id="customize-form-{{ recommendation.id }}" 
+                              action="{% url 'trips:customize_outfit' trip.id recommendation.id %}" 
+                              method="POST" 
+                              class="d-none mt-4">
+                            {% csrf_token %}
+                            <textarea name="custom_outfit" 
+                                      class="form-control mb-3" 
+                                      rows="4" 
+                                      placeholder="Enter your custom outfit description">{{ recommendation.outfit_description }}</textarea>
+                                      
+                            <div class="form-floating mb-3">
+                                <input type="text" class="form-control" id="form-activities-{{ recommendation.id }}" 
+                                       name="activities" placeholder="e.g., Hiking, Museum Visit" 
+                                       value="{{ recommendation.activities|default:'' }}">
+                                <label for="form-activities-{{ recommendation.id }}">Activities (optional)</label>
+                            </div>
+                            
+                            <div class="d-flex justify-content-end">
+                                <button type="button" 
+                                        onclick="toggleCustomizeForm('{{ recommendation.id }}')"
+                                        class="btn btn-link text-secondary me-2">
+                                    Cancel
+                                </button>
+                                <button type="submit" 
+                                        class="btn btn-primary">
+                                    Save Changes
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleCustomizeForm(recommendationId) {
+    const form = document.getElementById(`customize-form-${recommendationId}`);
+    form.classList.toggle('d-none');
+}
+
+function toggleActivitiesForm(recommendationId) {
+    const form = document.getElementById(`activities-form-${recommendationId}`);
+    form.classList.toggle('d-none');
+}
+</script>
+{% endblock %} 
