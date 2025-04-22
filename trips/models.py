@@ -22,6 +22,7 @@ class PackingListItem(models.Model):
     category = models.CharField(max_length=100)  # e.g., 'Clothing', 'Electronics', 'Toiletries'
     is_packed = models.BooleanField(default=False)
     is_auto_generated = models.BooleanField(default=False)  # To distinguish between auto-generated and manual items
+    must_have = models.BooleanField(default=False)  # To mark essential items for the destination
     quantity = models.IntegerField(default=1)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

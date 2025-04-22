@@ -64,12 +64,87 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
     
+    // Get CSRF token from the cookie
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    
+    // Handle quantity updates using event delegation
+    document.addEventListener('click', function(e) {
+        const button = e.target.closest('.increase-btn, .decrease-btn');
+        if (!button) {
+            return;
+        }
+        
+        e.preventDefault();
+        e.stopPropagation();  // Prevent event from bubbling up to the row
+        
+        const itemRow = button.closest('.item-row');
+        const tripId = itemRow.dataset.tripId;
+        const itemId = itemRow.dataset.itemId;
+        const action = button.classList.contains('increase-btn') ? 'increase' : 'decrease';
+        
+        // Get the CSRF token
+        const csrftoken = getCookie('csrftoken');
+        
+        const formData = new FormData();
+        formData.append('action', action);
+        
+        fetch(`/trips/packing-list/${tripId}/update-quantity/${itemId}/`, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': csrftoken,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            credentials: 'same-origin'
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.status === 'success') {
+                // Update quantity display
+                const quantityDisplay = itemRow.querySelector('.quantity-display');
+                quantityDisplay.textContent = data.quantity;
+                
+                // Update decrease button state
+                const decreaseBtn = itemRow.querySelector('.decrease-btn');
+                decreaseBtn.disabled = !data.can_decrease;
+            } else {
+                throw new Error(data.message || 'Failed to update quantity');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Failed to update quantity. Please try again.');
+        });
+    });
+    
     // Make entire item row clickable
     document.querySelectorAll('.item-row').forEach(function(row) {
         row.style.cursor = 'pointer';
         row.addEventListener('click', function(event) {
-            // Prevent clicking if we're on the delete button
-            if (event.target.closest('.delete-btn') || event.target.closest('form')) {
+            // Prevent clicking if we're on the delete button or quantity controls
+            if (event.target.closest('.delete-btn') || 
+                event.target.closest('.increase-btn') || 
+                event.target.closest('.decrease-btn') || 
+                event.target.closest('.quantity-display') ||
+                event.target.closest('form')) {
                 return;
             }
             
