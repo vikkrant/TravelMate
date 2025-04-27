@@ -11,6 +11,7 @@
                     <h2 class="text-center mb-0">Login</h2>
                 </div>
                 <div class="card-body">
+
                     <form method="post">
                         {% csrf_token %}
                         {% for field in form %}
@@ -25,12 +26,23 @@
                                 {% endfor %}
                             </div>
                         {% endfor %}
+                            <div>
+                                {% if messages %}
+                                        <ul>
+                                        {% for message in messages %}
+                                        <li>{{ message }}</li>
+                                        {% endfor %}
+                                         </ul>
+                                {% endif %}
+
+                            </div>
                         <div class="d-grid gap-2">
                             <button type="submit" class="btn btn-primary">Login</button>
                         </div>
                     </form>
                     <div class="text-center mt-3">
-                        <p>Don't have an account? <a href="{% url 'signup' %}" class="text-primary">Sign up</a></p>
+                        <p>Don't have an account? <a href="{% url 'signup' %}" class="text-primary">Sign Up</a></p>
+                        <p>Forgot Password? <a href="{% url 'reset_password' %}" class="text-primary">Reset Password</a></p>
                     </div>
                 </div>
             </div>
