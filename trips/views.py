@@ -4,15 +4,30 @@ import requests
 from django.http import JsonResponse
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
+from django.core.mail import send_mail
 import os
 from django.contrib import messages
 from django.views.decorators.http import require_POST
+from django.contrib.auth.models import User
 import openai
 from django.utils import timezone
 from .models import OutfitRecommendation, OutfitItem
 
 from trips.models import Trip, PackingListItem
 
+def send_api_fail_email(api_name):
+    admin_users = User.objects.filter(is_staff=True)
+
+    # Get emails of all users who are staff or superusers
+    admin_emails = [user.email for user in list(admin_users)]
+
+    send_mail(
+        subject=f"{api_name} API Failure",
+        message=f"A request to {api_name} has failed",
+        from_email=None,
+        recipient_list=admin_emails,
+        fail_silently=False,
+    )
 
 @login_required
 def trip_planner(request):
@@ -141,6 +156,8 @@ def view_weather(request, id):
         }
 
     except requests.exceptions.RequestException as e:
+        send_api_fail_email("OpenWeather")
+
         context = {
             'weather': {
                 'days': [],
@@ -561,6 +578,7 @@ def view_outfit_recommendations(request, id):
                         )
                         cultural_notes = cultural_response.choices[0].text.strip()
                     except Exception as e:
+                        send_api_fail_email("OpenAI")
                         outfit_description = f"Default recommendation for {weather_desc} weather at {temp}°F"
                         cultural_notes = "Cultural information not available."
                     
@@ -593,6 +611,7 @@ def view_outfit_recommendations(request, id):
             messages.success(request, 'Outfit recommendations generated successfully!')
             
         except requests.exceptions.RequestException:
+            send_api_fail_email("OpenWeather")
             messages.error(request, 'Failed to fetch weather data. Please try again later.')
         except Exception as e:
             messages.error(request, f'Error generating outfit recommendations: {str(e)}')
@@ -774,6 +793,7 @@ def regenerate_outfit(request, trip_id, recommendation_id):
             messages.success(request, 'Outfit recommendation regenerated successfully!')
             
         except Exception as e:
+            send_api_fail_email("OpenAI")
             messages.error(request, f'Error generating outfit recommendation: {str(e)}')
     
     except Exception as e:
@@ -913,6 +933,7 @@ def generate_smart_packing_list(request, trip_id):
             return generate_packing_list(request, trip_id)
             
     except Exception as e:
+        send_api_fail_email("OpenAI")
         messages.error(request, f'Error generating smart packing list: {str(e)}')
     
     return redirect('trips:view_packing_list', id=trip_id)
@@ -1057,6 +1078,7 @@ def all_outfits(request):
                                             formatted_items.append(item)
                                     outfit_description = '\n'.join(formatted_items)
                             except Exception as e:
+                                send_api_fail_email("OpenAI")
                                 outfit_description = f"Default recommendation for {weather_desc} weather at {temp}°F"
                             
                             recommendation = OutfitRecommendation.objects.create(
@@ -1167,6 +1189,7 @@ def generate_all_outfits(request):
                                     formatted_items.append(item)
                             outfit_description = '\n'.join(formatted_items)
                     except Exception as e:
+                        send_api_fail_email("OpenAI")
                         outfit_description = f"Default recommendation for {weather_desc} weather at {temp}°F"
                     
                     recommendation = OutfitRecommendation.objects.create(

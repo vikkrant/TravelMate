@@ -1,4 +1,6 @@
 #GitIgnore Complete
+backups
+
 # Django #
 *.log
 *.pot
