@@ -1,5 +1,5 @@
 #GitIgnore Complete
-#Vikrant New Branch Created
+backups
 # Django #
 *.log
 *.pot

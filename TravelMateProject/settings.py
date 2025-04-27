@@ -42,9 +42,11 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django_crontab', #chron job for db backup
     'core',
     'trips',
     'accounts',
+    'backup',
 ]
 
 MIDDLEWARE = [
@@ -113,7 +115,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'EST'
 
 USE_I18N = True
 
@@ -136,3 +138,20 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 LOGIN_REDIRECT_URL = 'core:landing'
 LOGOUT_REDIRECT_URL = 'core:landing'
+
+#cronjob config to run db backup every hour
+CRONJOBS = [
+    ('0 * * * *', 'backup.cron.run_backup')
+]
+
+CRONTAB_COMMAND_PREFIX = f'BACKUP_DIR={os.environ['BACKUP_DIR']}'
+
+#Email config
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+DEFAULT_FROM_EMAIL = os.environ['EMAIL_ADDRESS']
+SERVER_EMAIL = os.environ['EMAIL_ADDRESS']
+EMAIL_HOST_USER = os.environ['EMAIL_ADDRESS']
+EMAIL_HOST_PASSWORD = os.environ['EMAIL_PASSWORD']
+EMAIL_USE_TLS = True
