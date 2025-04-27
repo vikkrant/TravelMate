@@ -1,4 +1,14 @@
 /* General Styles */
+body.dark-mode {
+    --bg-color: #121212;
+    --text-color: white;
+    --card-bg: #333;
+    --navbar-bg: #1a1a1a;
+    --footer-bg: #333;
+    --footer-text: #fff;
+    --border-color: rgba(255, 255, 255, 0.1);
+}
+
 :root {
     --primary-color: #2196F3;
     --secondary-color: #1976D2;
@@ -12,6 +22,46 @@
     --footer-text: #fff;
     --border-color: rgba(0,0,0,0.1);
 }
+
+.checkbox {
+  opacity: 0;
+  position: absolute;
+}
+
+.checkbox-label {
+  background-color: #111;
+  width: 50px;
+  height: 26px;
+  border-radius: 50px;
+  position: relative;
+  padding: 5px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.fa-moon {color: #f1c40f;}
+
+.fa-sun {color: #f39c12;}
+
+.checkbox-label .ball {
+  background-color: #fff;
+  width: 22px;
+  height: 22px;
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  border-radius: 50%;
+  transition: transform 0.2s linear;
+}
+
+.checkbox:checked + .checkbox-label .ball {
+  transform: translateX(24px);
+}
+
+
+
 
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;

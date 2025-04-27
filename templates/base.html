@@ -5,19 +5,55 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}TravelMate - Your Smart Travel Companion{% endblock %}</title>
+
     
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Custom CSS -->
-    <link href="{% static 'css/style.css' %}" rel="stylesheet">
+
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="{% static 'css/style.css' %}" rel="stylesheet">
 </head>
 <body>
+
+
     <!-- Navigation -->
     <nav class="navbar navbar-expand-lg navbar-light fixed-top">
         <div class="container">
             <a class="navbar-brand" href="/">TravelMate</a>
+        <div>
+    <input type="checkbox" class="checkbox" id="checkbox">
+            <label for="checkbox" class="checkbox-label">
+                <i class="fas fa-moon"></i>
+                <i class="fas fa-sun"></i>
+                <span class="ball"></span>
+            </label>
+        </div>
+
+
+
+        <script>
+    document.addEventListener('DOMContentLoaded', function() {
+    console.log("Script loaded!");
+    const toggleButton = document.getElementById('checkbox');
+    const body = document.body;
+    // Load saved mode
+
+    toggleButton.addEventListener('click', function() {
+        console.log("Dark mode toggled! Current classes:", body.className);
+        body.classList.toggle('dark-mode');
+
+        // Save preference
+        if (body.classList.contains('dark-mode')) {
+            localStorage.setItem('darkMode', 'enabled');
+        } else {
+            localStorage.setItem('darkMode', 'disabled');
+        }
+    });
+});
+            </script>
+
             <div class="d-flex align-items-center">
                 <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                     <span class="navbar-toggler-icon"></span>
@@ -61,6 +97,7 @@
                     <li class="nav-item">
                         <a class="btn btn-outline-primary ms-2" href="{% url 'signup' %}">Sign Up</a>
                     </li>
+
                     {% endif %}
                 </ul>
             </div>
@@ -105,6 +142,8 @@
 
     <!-- Bootstrap JS and dependencies -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+
     <!-- Custom JS -->
     <script src="{% static 'js/main.js' %}"></script>
     
