@@ -144,14 +144,14 @@ CRONJOBS = [
     ('0 * * * *', 'backup.cron.run_backup')
 ]
 
-CRONTAB_COMMAND_PREFIX = f'BACKUP_DIR={os.environ['BACKUP_DIR']}'
+CRONTAB_COMMAND_PREFIX = f"BACKUP_DIR={os.environ.get('BACKUP_DIR', '/default/backup/path')}"
 
 #Email config
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
-DEFAULT_FROM_EMAIL = os.environ['EMAIL_ADDRESS']
-SERVER_EMAIL = os.environ['EMAIL_ADDRESS']
-EMAIL_HOST_USER = os.environ['EMAIL_ADDRESS']
-EMAIL_HOST_PASSWORD = os.environ['EMAIL_PASSWORD']
+DEFAULT_FROM_EMAIL = os.environ.get('EMAIL_ADDRESS', 'default@example.com')
+SERVER_EMAIL = os.environ.get('EMAIL_ADDRESS', 'default@example.com')
+EMAIL_HOST_USER = os.environ.get('EMAIL_ADDRESS', 'default@example.com')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_PASSWORD', 'default_password')
 EMAIL_USE_TLS = True

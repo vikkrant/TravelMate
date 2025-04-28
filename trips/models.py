@@ -72,4 +72,23 @@ class OutfitItem(models.Model):
         return f"{self.name} ({self.get_category_display()})"
     
     class Meta:
-        ordering = ['category', 'name'] 
+        ordering = ['category', 'name']
+
+class TravelTip(models.Model):
+    id = models.AutoField(primary_key=True)
+    trip = models.ForeignKey(Trip, on_delete=models.CASCADE, related_name='tips')
+    title = models.CharField(max_length=200)
+    description = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    CATEGORY_CHOICES = [
+        ('Travel', 'Travel'),
+        ('Cultural', 'Cultural'),
+        ('Safety', 'Safety'),
+        ('Other', 'Other')
+    ]
+    category = models.CharField(max_length=50, choices=CATEGORY_CHOICES, default='Travel')
+
+    def __str__(self):
+        return f"{self.title} (Trip:{self.get_category_display()})"
