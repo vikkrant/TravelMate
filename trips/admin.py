@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.models import User, Group
 from .models import Trip
+from .models import TravelTip
 
 class TripInline(admin.TabularInline):
     model = Trip
@@ -47,9 +48,17 @@ admin.site.unregister(User)
 admin.site.unregister(Group)
 admin.site.register(User, CustomUserAdmin)
 
+
 @admin.register(Trip)
 class TripAdmin(admin.ModelAdmin):
     list_display = ('user', 'destination', 'start_date', 'end_date', 'created_at')
     list_filter = ('user', 'start_date', 'end_date')
     search_fields = ('user__username', 'destination')
-    readonly_fields = ('created_at', 'updated_at') 
+    readonly_fields = ('created_at', 'updated_at')
+
+
+class TravelTipAdmin(admin.ModelAdmin):
+    list_display = ('title', 'category', 'created_at')
+    search_fields = ('title', 'description')
+    list_filter = ('category', 'created_at')
+admin.site.register(TravelTip, TravelTipAdmin)

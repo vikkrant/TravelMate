@@ -122,6 +122,12 @@ body {
     font-size: 5rem;
     margin-bottom: 1rem;
 }
+.hero-image-placeholder img {
+    width: 100%;        /* Make image fill the full width of the container */
+    height: 100%;       /* Force image to match the container's height */
+    object-fit: cover;  /* Crop the image if necessary to maintain aspect ratio */
+    border-radius: 10px; /* Optional: Match the rounded corners of the grey box */
+}
 
 /* Features Section */
 .features {
