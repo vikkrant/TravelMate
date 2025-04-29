@@ -126,6 +126,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 STATICFILES_DIRS = [
     BASE_DIR / 'static',
@@ -144,7 +145,7 @@ CRONJOBS = [
     ('0 * * * *', 'backup.cron.run_backup')
 ]
 
-CRONTAB_COMMAND_PREFIX = f'BACKUP_DIR={os.environ['BACKUP_DIR']}'
+CRONTAB_COMMAND_PREFIX = f'BACKUP_DIR={os.environ["BACKUP_DIR"]}'
 
 #Email config
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'

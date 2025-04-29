@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.models import User, Group
-from .models import Trip
+from .models import Trip, OutfitRecommendation, OutfitItem
 
 class TripInline(admin.TabularInline):
     model = Trip
@@ -15,6 +15,11 @@ class TripInline(admin.TabularInline):
 
     def has_add_permission(self, request, obj=None):
         return False
+
+class OutfitItemInline(admin.TabularInline):
+    model = OutfitItem
+    extra = 0
+    fields = ('name', 'category')
 
 class CustomUserAdmin(UserAdmin):
     inlines = [TripInline]
@@ -52,4 +57,28 @@ class TripAdmin(admin.ModelAdmin):
     list_display = ('user', 'destination', 'start_date', 'end_date', 'created_at')
     list_filter = ('user', 'start_date', 'end_date')
     search_fields = ('user__username', 'destination')
-    readonly_fields = ('created_at', 'updated_at') 
+    readonly_fields = ('created_at', 'updated_at')
+
+@admin.register(OutfitRecommendation)
+class OutfitRecommendationAdmin(admin.ModelAdmin):
+    list_display = ('trip', 'day', 'weather_condition', 'temperature', 'is_customized')
+    list_filter = ('trip__destination', 'weather_condition', 'is_customized')
+    search_fields = ('trip__destination', 'cultural_notes')
+    readonly_fields = ('created_at', 'updated_at')
+    inlines = [OutfitItemInline]
+    fieldsets = (
+        (None, {
+            'fields': ('trip', 'day', 'weather_condition', 'temperature')
+        }),
+        ('Outfit Details', {
+            'fields': ('outfit_description', 'activities', 'is_customized')
+        }),
+        ('Cultural Information', {
+            'fields': ('cultural_notes',),
+            'description': 'Cultural dress tips and customs for the destination'
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        })
+    ) 

@@ -1,5 +1,5 @@
 import os
-
+import shutil
 from django.contrib import admin
 
 import subprocess
@@ -15,7 +15,7 @@ def restore_backup(modeladmin, request, queryset):
 
         backup = queryset.first()
         backup_path = os.path.join(os.environ['BACKUP_DIR'], backup.name)
-        subprocess.run(["cp",  f"{backup_path}.sqlite3", os.environ['DB_PATH']])
+        shutil.copy2(f"{backup_path}.sqlite3", os.environ['DB_PATH'])
 
         Backup.objects.all().delete()
         for backup in existing_backups:
@@ -40,7 +40,9 @@ class BackupAdmin(admin.ModelAdmin):
 
     def save_model(self, request, obj, form, change):
         backup_path = os.path.join(os.environ['BACKUP_DIR'], obj.name)
-        subprocess.run(["cp", os.environ['DB_PATH'], f"{backup_path}.sqlite3"])
+        # Create BACKUP_DIR if it doesn't exist
+        os.makedirs(os.environ['BACKUP_DIR'], exist_ok=True)
+        shutil.copy2(os.environ['DB_PATH'], f"{backup_path}.sqlite3")
         super().save_model(request, obj, form, change)
 
     def delete_model(self, request, obj):
